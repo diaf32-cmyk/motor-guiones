@@ -114,9 +114,39 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
 
 .toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--accent);color:#fff;padding:10px 16px;border-radius:var(--r);font-size:13px;font-weight:500;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none;z-index:999}
 .toast.show{opacity:1;transform:translateY(0)}
+
+/* ── Barra de progreso fija ── */
+.progress-bar{position:fixed;top:0;left:0;right:0;z-index:1000;background:var(--surface);border-bottom:.5px solid var(--border);padding:0 1.5rem;display:none;align-items:center;gap:1rem;height:52px;box-shadow:0 2px 12px rgba(0,0,0,.07)}
+.progress-bar.on{display:flex}
+.progress-steps{display:flex;align-items:center;gap:6px;flex:1}
+.progress-step{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3);white-space:nowrap}
+.progress-step .dot{width:8px;height:8px;border-radius:50%;background:var(--border-s);flex-shrink:0;transition:background .3s}
+.progress-step.active .dot{background:var(--accent);box-shadow:0 0 0 3px rgba(26,25,22,.15)}
+.progress-step.active{color:var(--text);font-weight:600}
+.progress-step.done .dot{background:var(--accent)}
+.progress-step.done{color:var(--text2)}
+.progress-sep{width:20px;height:.5px;background:var(--border);flex-shrink:0}
+.progress-track{height:3px;background:var(--border);border-radius:2px;overflow:hidden;width:120px;flex-shrink:0}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .4s ease}
+body.progress-open{padding-top:52px}
 </style>
 </head>
 <body>
+
+<!-- Barra de progreso fija -->
+<div class="progress-bar" id="progressBar">
+  <div class="progress-steps">
+    <div class="progress-step" id="ps1"><span class="dot"></span>Leyendo documento</div>
+    <div class="progress-sep"></div>
+    <div class="progress-step" id="ps2"><span class="dot"></span>Analizando guión</div>
+    <div class="progress-sep"></div>
+    <div class="progress-step" id="ps3"><span class="dot"></span>Generando teleprompter</div>
+    <div class="progress-sep"></div>
+    <div class="progress-step" id="ps4"><span class="dot"></span>Listo</div>
+  </div>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
 <div class="shell">
 
   <header class="header">
@@ -289,6 +319,32 @@ function fmtTime(sec) {
   return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
 }
 
+function setProgress(step) {
+  // step: 0=oculto, 1=leyendo, 2=analizando, 3=teleprompter, 4=listo
+  const bar  = document.getElementById('progressBar');
+  const fill = document.getElementById('progressFill');
+  const steps = [null,
+    document.getElementById('ps1'),
+    document.getElementById('ps2'),
+    document.getElementById('ps3'),
+    document.getElementById('ps4')
+  ];
+  if (step === 0) {
+    bar.classList.remove('on');
+    document.body.classList.remove('progress-open');
+    return;
+  }
+  bar.classList.add('on');
+  document.body.classList.add('progress-open');
+  const pct = [0, 10, 40, 75, 100];
+  fill.style.width = pct[step] + '%';
+  for (let i = 1; i <= 4; i++) {
+    steps[i].classList.remove('active','done');
+    if (i < step)  steps[i].classList.add('done');
+    if (i === step) steps[i].classList.add('active');
+  }
+}
+
 function setStatus(msg, loading) {
   const el = document.getElementById('status');
   el.innerHTML = loading
@@ -359,9 +415,10 @@ async function run() {
   const transDur = parseInt(document.getElementById('transDur').value)   || 1;
 
   try {
-    setStatus('Leyendo el guión desde Google Docs…', true);
+    setProgress(1); setStatus('Leyendo el guión desde Google Docs…', true);
 
     const docText = await fetchDocText(docId);
+    setProgress(2);
 
     const combinedSystem =
       'Eres un experto en análisis y formateo de guiones audiovisuales en formato Célula de Producción (columnas NAR/TEX/OBS/REF/EST).\n\n' +
@@ -452,10 +509,10 @@ async function run() {
 
     document.getElementById('tpBox').textContent = tpText || '(sin texto generado)';
     document.getElementById('results').classList.add('on');
-    setStatus('✓ ' + lastTitle + ' · ' + nMods + ' módulos · ' + fmtTime(totalSec) + ' estimados');
+    setProgress(4); setTimeout(function(){ setProgress(0); }, 1800); setStatus('✓ ' + lastTitle + ' · ' + nMods + ' módulos · ' + fmtTime(totalSec) + ' estimados');
 
   } catch(err) {
-    setStatus('Error al procesar el documento.', false);
+    setProgress(0); setStatus('Error al procesar el documento.', false);
     showErr(err.message || 'Error desconocido. Verifica que el documento sea accesible.');
   } finally {
     document.getElementById('runBtn').disabled = false;
