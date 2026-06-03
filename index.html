@@ -310,20 +310,20 @@ function extractId(url) {
   return m ? m[1] : null;
 }
 
-async function callClaude(system, userMsg, useDrive) {
+async function fetchDocText(docId) {
+  const exportUrl = 'https://docs.google.com/document/d/' + docId + '/export?format=txt';
+  const res = await fetch('/api/proxy-doc?id=' + encodeURIComponent(docId));
+  if (!res.ok) throw new Error('No se pudo leer el documento. Verifica que esté compartido como "cualquiera con el enlace puede ver".');
+  return await res.text();
+}
+
+async function callClaude(system, userMsg) {
   const body = {
-    model:    MODEL,
+    model:      MODEL,
     max_tokens: 8000,
-    system:   system,
-    messages: [{ role: 'user', content: userMsg }]
+    system:     system,
+    messages:   [{ role: 'user', content: userMsg }]
   };
-  if (useDrive) {
-    body.mcp_servers = [{
-      type: 'url',
-      url:  'https://drivemcp.googleapis.com/mcp/v1',
-      name: 'google-drive'
-    }];
-  }
   const res = await fetch('/api/proxy', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -359,23 +359,24 @@ async function run() {
   const transDur = parseInt(document.getElementById('transDur').value)   || 1;
 
   try {
-    setStatus('Leyendo el guión desde Google Drive…', true);
+    setStatus('Leyendo el guión desde Google Docs…', true);
+
+    const docText = await fetchDocText(docId);
 
     const analyzeSystem =
       'Eres un experto en análisis de guiones audiovisuales en formato Célula de Producción (columnas NAR/TEX/OBS/REF/EST).\n\n' +
-      'Lee el Google Doc con ID: ' + docId + '\n\n' +
       'Extrae ÚNICAMENTE el texto de la columna NAR eliminando:\n' +
       '- Indicaciones de acción entre paréntesis: (MIRA A CÁMARA), (PAUSA), etc.\n' +
-      '- Nombres de hablantes en negrita: **Presentadora:**, **Relator:**, etc.\n' +
-      '- Instrucciones de producción: cortinas, inserts, gráficas, agregar, propuesta visual, plano, lower third, chroma.\n' +
+      '- Nombres de hablantes en negrita: Presentadora:, Relator:, etc.\n' +
+      '- Instrucciones de producción: cortinas, inserts, gráficas, propuesta visual, plano, lower third, chroma.\n' +
       '- Encabezados, tablas, URLs, metadatos.\n\n' +
       'Identifica los módulos y cuenta las palabras NAR limpias por módulo.\n\n' +
       'Responde SOLO con JSON válido sin texto extra:\n' +
       '{"titulo":"nombre","modulos":[{"numero":1,"nombre":"Nombre","palabras_nar":350,"escenas":4,"texto_nar":"texto..."}],"total_palabras":1200}';
 
-    const analyzeRaw = await callClaude(analyzeSystem, 'Analiza el guión del Google Doc ID: ' + docId, true);
+    const analyzeRaw = await callClaude(analyzeSystem, 'Analiza este guión:\n\n' + docText.substring(0, 30000));
     const jm = analyzeRaw.match(/\{[\s\S]*\}/);
-    if (!jm) throw new Error('No se pudo leer el documento. Verifica que sea un guión en formato Célula y que esté compartido.');
+    if (!jm) throw new Error('No se pudo procesar el documento. Verifica que sea un guión en formato Célula.');
     const parsed = JSON.parse(jm[0]);
 
     setStatus('Generando versión teleprompter…', true);
@@ -394,7 +395,7 @@ async function run() {
       '5. Sin negritas, cursivas, bullets ni símbolos\n\n' +
       'Responde SOLO con el texto formateado.';
 
-    const tpRaw = await callClaude(tpSystem, 'Formatea para teleprompter:\n\n' + narTexts, false);
+    const tpRaw = await callClaude(tpSystem, 'Formatea para teleprompter:\n\n' + narTexts);
     tpText    = tpRaw;
     lastTitle = parsed.titulo || 'Guión';
 
@@ -513,8 +514,7 @@ async function exportDoc() {
     var docTitle = 'Teleprompter · ' + lastTitle + ' · ' + new Date().toLocaleDateString('es-CL');
     var raw = await callClaude(
       'Crea un nuevo Google Doc con el título y contenido indicados. Responde SOLO con JSON: {"url":"https://docs.google.com/document/d/..."}',
-      'Título: "' + docTitle + '"\n\nContenido:\n' + tpText.substring(0, 5000),
-      true
+      'Título: "' + docTitle + '"\n\nContenido:\n' + tpText.substring(0, 5000)
     );
     var urlMatch = raw.match(/https:\/\/docs\.google\.com\/document\/d\/[^\s"']+/);
     if (urlMatch) { window.open(urlMatch[0], '_blank'); toast('Google Doc creado ✓'); }
