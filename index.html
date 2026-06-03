@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Motor de Guiones V3 · Célula de Producción</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f7f6f3;--surface:#fff;--surface2:#f0ede8;
+  --border:rgba(0,0,0,.10);--border-s:rgba(0,0,0,.20);
+  --text:#1a1916;--text2:#5a5855;--text3:#9a9895;
+  --accent:#1a1916;--accent-fg:#fff;
+  --info-bg:#eef4ff;--info-fg:#1d4ed8;
+  --warn-bg:#fef9ee;--warn-fg:#92400e;
+  --danger-bg:#fef2f2;--danger-fg:#991b1b;
+  --r:10px;--rl:14px;
+}
+body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.shell{max-width:740px;margin:0 auto;padding:2.5rem 1.5rem 5rem}
+
+.header{margin-bottom:2.5rem}
+.logo-row{display:flex;align-items:center;gap:10px;margin-bottom:1.25rem}
+.logo{width:36px;height:36px;background:var(--accent);border-radius:9px;display:flex;align-items:center;justify-content:center}
+.logo i{color:var(--accent-fg);font-size:18px}
+.logo-name{font-size:13px;font-weight:500;color:var(--text2)}
+.v-pill{margin-left:auto;font-family:'DM Mono',monospace;font-size:10px;padding:3px 8px;border-radius:20px;background:var(--surface2);color:var(--text3);border:.5px solid var(--border)}
+.header h1{font-size:28px;font-weight:700;line-height:1.15;margin-bottom:8px}
+.header p{font-size:14px;color:var(--text2);line-height:1.6}
+
+.card{background:var(--surface);border:.5px solid var(--border);border-radius:var(--rl);padding:1.5rem;margin-bottom:1rem}
+.card-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem;display:flex;align-items:center;gap:6px}
+.card-label::after{content:'';flex:1;height:.5px;background:var(--border)}
+
+.url-row{display:flex;gap:8px}
+.url-inp{flex:1;height:44px;padding:0 14px;border:.5px solid var(--border-s);border-radius:var(--r);background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:14px;transition:border-color .15s}
+.url-inp:focus{outline:none;border-color:var(--accent)}
+.url-inp::placeholder{color:var(--text3)}
+.btn-primary{height:44px;padding:0 22px;background:var(--accent);color:var(--accent-fg);border:none;border-radius:var(--r);font-family:'Syne',sans-serif;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:opacity .15s}
+.btn-primary:hover{opacity:.82}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed}
+
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mode-card{border:.5px solid var(--border);border-radius:var(--rl);padding:1rem;cursor:pointer;transition:border-color .15s,background .15s;position:relative;background:var(--bg)}
+.mode-card:hover{background:var(--surface2)}
+.mode-card.active{border-color:var(--accent);background:var(--surface2)}
+.mode-card.active::after{content:'';position:absolute;top:12px;right:12px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.mode-title{font-size:13px;font-weight:600;margin-bottom:4px}
+.mode-desc{font-size:11px;color:var(--text2);line-height:1.5}
+.mode-badge{display:inline-block;font-family:'DM Mono',monospace;font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;margin-top:8px}
+.badge-a{background:var(--info-bg);color:var(--info-fg)}
+.badge-b{background:var(--warn-bg);color:var(--warn-fg)}
+
+.cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cfg-item{display:flex;flex-direction:column;gap:6px}
+.cfg-label{font-size:12px;color:var(--text2)}
+.cfg-label small{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace}
+.cfg-row{display:flex;align-items:center;gap:8px}
+.cfg-unit{font-size:11px;color:var(--text3)}
+.tog{position:relative;width:34px;height:18px;flex-shrink:0}
+.tog input{opacity:0;width:0;height:0}
+.tog-sl{position:absolute;inset:0;background:var(--border-s);border-radius:18px;cursor:pointer;transition:background .2s}
+.tog input:checked+.tog-sl{background:var(--accent)}
+.tog-sl::before{content:'';position:absolute;width:12px;height:12px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s}
+.tog input:checked+.tog-sl::before{transform:translateX(16px)}
+.num-inp{width:64px;height:34px;text-align:center;border:.5px solid var(--border-s);border-radius:var(--r);background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px}
+.num-inp:focus{outline:none;border-color:var(--accent)}
+
+.cal-note{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:var(--r);background:var(--surface2);border:.5px solid var(--border);font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:1rem}
+.cal-note i{font-size:15px;color:var(--text3);margin-top:1px;flex-shrink:0}
+.cal-note strong{font-weight:600;color:var(--text)}
+
+.status{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--r);background:var(--surface2);font-size:13px;color:var(--text2);min-height:44px;margin-bottom:1rem}
+.spinner{width:14px;height:14px;flex-shrink:0;border:2px solid var(--border-s);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.err{display:none;margin-top:8px;padding:10px 14px;border-radius:var(--r);font-size:12px;background:var(--danger-bg);color:var(--danger-fg)}
+.err.on{display:block}
+
+.divider{height:.5px;background:var(--border);margin:2rem 0}
+.results{display:none}
+.results.on{display:block}
+
+.time-hero{padding:2rem;background:var(--accent);border-radius:var(--rl);margin-bottom:1rem}
+.time-main{font-family:'DM Mono',monospace;font-size:56px;font-weight:500;color:#fff;letter-spacing:-.02em;line-height:1;margin-bottom:6px}
+.time-label{font-size:13px;color:rgba(255,255,255,.6)}
+
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem}
+.met{background:var(--surface2);border-radius:var(--r);padding:14px}
+.met-label{font-size:10px;color:var(--text3);margin-bottom:5px;line-height:1.3}
+.met-val{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;color:var(--text)}
+.met-sub{font-size:10px;color:var(--text3);margin-top:3px}
+
+.breakdown{width:100%;font-size:13px;border-collapse:collapse}
+.breakdown tr{border-bottom:.5px solid var(--border)}
+.breakdown tr:last-child{border-bottom:none;font-weight:600}
+.breakdown td{padding:9px 0;color:var(--text)}
+.breakdown td:last-child{text-align:right;font-family:'DM Mono',monospace;color:var(--text2)}
+.breakdown tr:last-child td:last-child{color:var(--text)}
+.breakdown .dim{color:var(--text3);font-size:11px;margin-left:6px;font-family:'DM Mono',monospace}
+
+.mod-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:.5px solid var(--border);font-size:13px}
+.mod-row:last-child{border-bottom:none}
+.mod-meta{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2)}
+
+.tp-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.btn-sec{height:34px;padding:0 14px;background:var(--surface);border:.5px solid var(--border-s);border-radius:var(--r);font-family:'Syne',sans-serif;font-size:12px;font-weight:500;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .12s}
+.btn-sec:hover{background:var(--surface2)}
+.tp-box{background:var(--bg);border:.5px solid var(--border);border-radius:var(--r);padding:1.25rem;max-height:400px;overflow-y:auto;font-family:'DM Mono',monospace;font-size:12px;line-height:2.1;color:var(--text);white-space:pre-wrap}
+
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--accent);color:#fff;padding:10px 16px;border-radius:var(--r);font-size:13px;font-weight:500;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none;z-index:999}
+.toast.show{opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="header">
+    <div class="logo-row">
+      <div class="logo"><i class="ti ti-movie"></i></div>
+      <span class="logo-name">Motor de Guiones · Célula de Producción</span>
+      <span class="v-pill">v3.0 · calibrado</span>
+    </div>
+    <h1>Calculadora &amp;<br>Formateador de Guiones</h1>
+    <p>Pega el enlace del Google Doc con el guión en formato Célula, elige el modo de producción y obtén la duración estimada del curso publicado más la versión teleprompter lista para usar.</p>
+  </header>
+
+  <div class="card">
+    <div class="card-label"><i class="ti ti-link" style="font-size:12px"></i> Guión</div>
+    <div class="url-row">
+      <input class="url-inp" id="docUrl" type="url" placeholder="https://docs.google.com/document/d/..." autocomplete="off"/>
+      <button class="btn-primary" id="runBtn" onclick="run()">
+        <i class="ti ti-player-play"></i> Analizar
+      </button>
+    </div>
+    <div class="err" id="errMsg"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><i class="ti ti-adjustments-horizontal" style="font-size:12px"></i> Modo de producción</div>
+    <div class="mode-grid">
+      <div class="mode-card active" id="modeA" onclick="setMode('A')">
+        <div class="mode-title">Narración estándar</div>
+        <div class="mode-desc">Speaker continuo, pocos inserts visuales. Cortinas y transiciones simples.</div>
+        <span class="mode-badge badge-a">148 wpm</span>
+      </div>
+      <div class="mode-card" id="modeB" onclick="setMode('B')">
+        <div class="mode-title">Visual intensivo</div>
+        <div class="mode-desc">Gráficas animadas, datos en pantalla, inserts frecuentes, pausas pedagógicas.</div>
+        <span class="mode-badge badge-b">148 wpm + 87 s/módulo</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><i class="ti ti-sliders" style="font-size:12px"></i> Elementos de edición</div>
+    <div class="cfg-grid">
+      <div class="cfg-item">
+        <div class="cfg-label">Tasa de locución <small>(calibrada)</small></div>
+        <div class="cfg-row">
+          <input class="num-inp" type="number" id="wpm" value="148" min="80" max="220"/>
+          <span class="cfg-unit">palabras / min</span>
+        </div>
+      </div>
+      <div class="cfg-item">
+        <div class="cfg-label">Overhead visual <small>(modo B)</small></div>
+        <div class="cfg-row">
+          <input class="num-inp" type="number" id="overhead" value="87" min="0" max="300"/>
+          <span class="cfg-unit">seg / módulo</span>
+        </div>
+      </div>
+      <div class="cfg-item">
+        <div class="cfg-label">Intro / logo apertura</div>
+        <div class="cfg-row">
+          <label class="tog"><input type="checkbox" id="hasIntro" checked/><span class="tog-sl"></span></label>
+          <input class="num-inp" type="number" id="introDur" value="5" min="0" max="60"/>
+          <span class="cfg-unit">seg</span>
+        </div>
+      </div>
+      <div class="cfg-item">
+        <div class="cfg-label">Outro / logo cierre</div>
+        <div class="cfg-row">
+          <label class="tog"><input type="checkbox" id="hasOutro" checked/><span class="tog-sl"></span></label>
+          <input class="num-inp" type="number" id="outroDur" value="5" min="0" max="60"/>
+          <span class="cfg-unit">seg</span>
+        </div>
+      </div>
+      <div class="cfg-item">
+        <div class="cfg-label">Cortinas entre módulos</div>
+        <div class="cfg-row">
+          <label class="tog"><input type="checkbox" id="hasCortinas" checked/><span class="tog-sl"></span></label>
+          <input class="num-inp" type="number" id="cortinaDur" value="4" min="0" max="30"/>
+          <span class="cfg-unit">seg c/u</span>
+        </div>
+      </div>
+      <div class="cfg-item">
+        <div class="cfg-label">Transiciones entre escenas</div>
+        <div class="cfg-row">
+          <label class="tog"><input type="checkbox" id="hasTrans" checked/><span class="tog-sl"></span></label>
+          <input class="num-inp" type="number" id="transDur" value="1" min="0" max="10"/>
+          <span class="cfg-unit">seg c/u</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cal-note">
+    <i class="ti ti-chart-dots"></i>
+    <span>Tasa calibrada con <strong>19 guiones reales</strong> del equipo. Overhead visual calibrado con <strong>8 módulos medidos en video publicado</strong> (convergencia en 87 s/módulo).</span>
+  </div>
+
+  <div class="status" id="status">
+    <i class="ti ti-file-text" style="font-size:15px;color:var(--text3)"></i>
+    <span>Listo. Ingresa el enlace del guión y presiona Analizar.</span>
+  </div>
+
+  <div class="results" id="results">
+    <div class="divider"></div>
+
+    <div class="time-hero">
+      <div class="time-main" id="heroTime">00:00</div>
+      <div class="time-label" id="heroLabel">duración total estimada del curso editado</div>
+    </div>
+
+    <div class="metrics">
+      <div class="met">
+        <div class="met-label">Palabras NAR limpias</div>
+        <div class="met-val" id="mWords">—</div>
+        <div class="met-sub">texto de locución</div>
+      </div>
+      <div class="met">
+        <div class="met-label">Locución pura</div>
+        <div class="met-val" id="mSpeech">—</div>
+        <div class="met-sub">sin producción</div>
+      </div>
+      <div class="met">
+        <div class="met-label">Módulos</div>
+        <div class="met-val" id="mMods">—</div>
+        <div class="met-sub" id="mModSub">detectados</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Desglose del cálculo</div>
+      <table class="breakdown" id="breakdown"><tbody></tbody></table>
+    </div>
+
+    <div class="card" id="modCard" style="display:none">
+      <div class="card-label">Por módulo</div>
+      <div id="modList"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label"><i class="ti ti-presentation" style="font-size:12px"></i> Texto para teleprompter</div>
+      <div class="tp-actions">
+        <button class="btn-sec" onclick="copyTP()"><i class="ti ti-copy"></i> Copiar</button>
+        <button class="btn-sec" onclick="dlDocx()"><i class="ti ti-file-word"></i> Descargar .docx</button>
+        <button class="btn-sec" onclick="exportDoc()"><i class="ti ti-brand-google-drive"></i> Exportar a Google Doc</button>
+        <button class="btn-sec" onclick="dlTxt()"><i class="ti ti-download"></i> Descargar .txt</button>
+      </div>
+      <div class="tp-box" id="tpBox">(sin contenido aún)</div>
+    </div>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const MODEL          = 'claude-sonnet-4-20250514';
+const WPM_DEFAULT    = 148;
+const OVERHEAD_DEF   = 87;
+
+let currentMode = 'A';
+let tpText      = '';
+let lastTitle   = '';
+
+function setMode(m) {
+  currentMode = m;
+  document.getElementById('modeA').classList.toggle('active', m === 'A');
+  document.getElementById('modeB').classList.toggle('active', m === 'B');
+}
+
+function fmtTime(sec) {
+  const m = Math.floor(sec / 60), s = Math.round(sec % 60);
+  return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+function setStatus(msg, loading) {
+  const el = document.getElementById('status');
+  el.innerHTML = loading
+    ? '<div class="spinner"></div><span>' + msg + '</span>'
+    : '<i class="ti ti-check" style="font-size:15px;color:var(--text3)"></i><span>' + msg + '</span>';
+}
+
+function showErr(msg) { const e = document.getElementById('errMsg'); e.textContent = msg; e.classList.add('on'); }
+function hideErr()    { document.getElementById('errMsg').classList.remove('on'); }
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(function() { el.classList.remove('show'); }, 2500);
+}
+
+function extractId(url) {
+  const m = url.match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
+async function callClaude(system, userMsg, useDrive) {
+  const body = {
+    model:    MODEL,
+    max_tokens: 8000,
+    system:   system,
+    messages: [{ role: 'user', content: userMsg }]
+  };
+  if (useDrive) {
+    body.mcp_servers = [{
+      type: 'url',
+      url:  'https://drivemcp.googleapis.com/mcp/v1',
+      name: 'google-drive'
+    }];
+  }
+  const res = await fetch('/api/proxy', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(function() { return {}; });
+    throw new Error(e.error || ('Error ' + res.status));
+  }
+  const data = await res.json();
+  return data.content.filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('\n');
+}
+
+async function run() {
+  hideErr();
+  const url = document.getElementById('docUrl').value.trim();
+  if (!url || !url.includes('docs.google.com')) { showErr('Ingresa un enlace válido de Google Docs.'); return; }
+  const docId = extractId(url);
+  if (!docId) { showErr('No se pudo extraer el ID del documento.'); return; }
+
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('results').classList.remove('on');
+
+  const wpm      = parseInt(document.getElementById('wpm').value)       || WPM_DEFAULT;
+  const overhead = parseInt(document.getElementById('overhead').value)   || OVERHEAD_DEF;
+  const hasIntro = document.getElementById('hasIntro').checked;
+  const introDur = parseInt(document.getElementById('introDur').value)   || 5;
+  const hasOutro = document.getElementById('hasOutro').checked;
+  const outroDur = parseInt(document.getElementById('outroDur').value)   || 5;
+  const hasCort  = document.getElementById('hasCortinas').checked;
+  const cortDur  = parseInt(document.getElementById('cortinaDur').value) || 4;
+  const hasTrans = document.getElementById('hasTrans').checked;
+  const transDur = parseInt(document.getElementById('transDur').value)   || 1;
+
+  try {
+    setStatus('Leyendo el guión desde Google Drive…', true);
+
+    const analyzeSystem =
+      'Eres un experto en análisis de guiones audiovisuales en formato Célula de Producción (columnas NAR/TEX/OBS/REF/EST).\n\n' +
+      'Lee el Google Doc con ID: ' + docId + '\n\n' +
+      'Extrae ÚNICAMENTE el texto de la columna NAR eliminando:\n' +
+      '- Indicaciones de acción entre paréntesis: (MIRA A CÁMARA), (PAUSA), etc.\n' +
+      '- Nombres de hablantes en negrita: **Presentadora:**, **Relator:**, etc.\n' +
+      '- Instrucciones de producción: cortinas, inserts, gráficas, agregar, propuesta visual, plano, lower third, chroma.\n' +
+      '- Encabezados, tablas, URLs, metadatos.\n\n' +
+      'Identifica los módulos y cuenta las palabras NAR limpias por módulo.\n\n' +
+      'Responde SOLO con JSON válido sin texto extra:\n' +
+      '{"titulo":"nombre","modulos":[{"numero":1,"nombre":"Nombre","palabras_nar":350,"escenas":4,"texto_nar":"texto..."}],"total_palabras":1200}';
+
+    const analyzeRaw = await callClaude(analyzeSystem, 'Analiza el guión del Google Doc ID: ' + docId, true);
+    const jm = analyzeRaw.match(/\{[\s\S]*\}/);
+    if (!jm) throw new Error('No se pudo leer el documento. Verifica que sea un guión en formato Célula y que esté compartido.');
+    const parsed = JSON.parse(jm[0]);
+
+    setStatus('Generando versión teleprompter…', true);
+
+    const narTexts = (parsed.modulos || [])
+      .map(function(m) { return '=== ' + (m.nombre || 'Módulo ' + m.numero) + ' ===\n' + (m.texto_nar || ''); })
+      .join('\n\n');
+
+    const tpSystem =
+      'Eres un experto en formateo de guiones para teleprompter profesional.\n\n' +
+      'Reglas ESTRICTAS:\n' +
+      '1. CERO números — todos en letras: "22"→"veintidós", "50%"→"cincuenta por ciento", "UF 2"→"dos unidades de fomento", "$100.000"→"cien mil pesos"\n' +
+      '2. Siglas expandidas: "CMF"→"Comisión para el Mercado Financiero", "RRHH"→"Recursos Humanos", "CEO"→"directora ejecutiva", "IA"→"inteligencia artificial"\n' +
+      '3. Párrafos cortos (máx 2-3 líneas) separados por línea en blanco\n' +
+      '4. Encabezado de módulo en MAYÚSCULAS + línea ----------\n' +
+      '5. Sin negritas, cursivas, bullets ni símbolos\n\n' +
+      'Responde SOLO con el texto formateado.';
+
+    const tpRaw = await callClaude(tpSystem, 'Formatea para teleprompter:\n\n' + narTexts, false);
+    tpText    = tpRaw;
+    lastTitle = parsed.titulo || 'Guión';
+
+    const totalWords = parsed.total_palabras || 0;
+    const mods       = parsed.modulos || [];
+    const nMods      = mods.length;
+    const nScenes    = mods.reduce(function(a, m) { return a + (m.escenas || 0); }, 0);
+    const speechSec  = totalWords / wpm * 60;
+
+    var editSec = 0;
+    var rows    = [];
+    rows.push(['Locución NAR', totalWords + ' palabras ÷ ' + wpm + ' ppm', speechSec]);
+
+    if (currentMode === 'B') {
+      var oh = nMods * overhead; editSec += oh;
+      rows.push(['Overhead visual', nMods + ' módulos × ' + overhead + 's', oh]);
+    }
+    if (hasIntro) { editSec += introDur; rows.push(['Intro / logo apertura', '', introDur]); }
+    if (hasOutro) { editSec += outroDur; rows.push(['Outro / logo cierre',   '', outroDur]); }
+    if (hasCort && nMods > 0) {
+      var ct = nMods * cortDur; editSec += ct;
+      rows.push(['Cortinas de módulo', nMods + ' × ' + cortDur + 's', ct]);
+    }
+    if (hasTrans && nScenes > 0) {
+      var tt = nScenes * transDur; editSec += tt;
+      rows.push(['Transiciones', nScenes + ' escenas × ' + transDur + 's', tt]);
+    }
+    var totalSec = speechSec + editSec;
+
+    document.getElementById('heroTime').textContent  = fmtTime(totalSec);
+    document.getElementById('heroLabel').textContent = lastTitle + ' · Modo ' + (currentMode === 'A' ? 'narración estándar' : 'visual intensivo');
+    document.getElementById('mWords').textContent    = totalWords.toLocaleString('es-CL');
+    document.getElementById('mSpeech').textContent   = fmtTime(speechSec);
+    document.getElementById('mMods').textContent     = nMods;
+    document.getElementById('mModSub').textContent   = currentMode === 'B' ? '+' + overhead + 's overhead/mod' : 'detectados';
+
+    var tbody = document.querySelector('#breakdown tbody');
+    tbody.innerHTML = '';
+    rows.forEach(function(r) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + r[0] + '<span class="dim">' + r[1] + '</span></td><td>' + fmtTime(r[2]) + '</td>';
+      tbody.appendChild(tr);
+    });
+    tbody.insertAdjacentHTML('beforeend', '<tr><td colspan="2" style="padding:2px 0"><div style="height:.5px;background:var(--border)"></div></td></tr>');
+    var tot = document.createElement('tr');
+    tot.innerHTML = '<td>Duración total estimada</td><td>' + fmtTime(totalSec) + '</td>';
+    tbody.appendChild(tot);
+
+    var modList = document.getElementById('modList');
+    modList.innerHTML = '';
+    if (mods.length > 0) {
+      document.getElementById('modCard').style.display = '';
+      mods.forEach(function(m) {
+        var ms  = (m.palabras_nar || 0) / wpm * 60 + (currentMode === 'B' ? overhead : 0);
+        var div = document.createElement('div');
+        div.className = 'mod-row';
+        div.innerHTML = '<span class="mod-name">' + (m.nombre || 'Módulo ' + m.numero) + '</span><span class="mod-meta">' + (m.palabras_nar || 0).toLocaleString('es-CL') + 'w · ' + fmtTime(ms) + '</span>';
+        modList.appendChild(div);
+      });
+    }
+
+    document.getElementById('tpBox').textContent = tpText || '(sin texto generado)';
+    document.getElementById('results').classList.add('on');
+    setStatus('✓ ' + lastTitle + ' · ' + nMods + ' módulos · ' + fmtTime(totalSec) + ' estimados');
+
+  } catch(err) {
+    setStatus('Error al procesar el documento.', false);
+    showErr(err.message || 'Error desconocido. Verifica que el documento sea accesible.');
+  } finally {
+    document.getElementById('runBtn').disabled = false;
+  }
+}
+
+function dlDocx() {
+  if (!tpText) return;
+  try {
+    var D  = docx;
+    var lines    = tpText.split('\n');
+    var children = [];
+    lines.forEach(function(line) {
+      var t = line.trim();
+      if (/^-{3,}$/.test(t) || t === '') {
+        children.push(new D.Paragraph({ children: [new D.TextRun('')], spacing: { after: 80 } }));
+      } else if (t === t.toUpperCase() && t.length > 3 && /[A-ZÁÉÍÓÚÜÑ]/.test(t)) {
+        children.push(new D.Paragraph({
+          children: [new D.TextRun({ text: t, bold: true, size: 28, font: 'Arial' })],
+          spacing:  { before: 400, after: 120 }
+        }));
+      } else {
+        children.push(new D.Paragraph({
+          children: [new D.TextRun({ text: t, size: 32, font: 'Arial' })],
+          spacing:  { after: 160, line: 480, lineRule: 'auto' }
+        }));
+      }
+    });
+    var doc = new D.Document({
+      styles:   { default: { document: { run: { font: 'Arial', size: 32 } } } },
+      sections: [{ properties: { page: { size: { width: 12240, height: 15840 }, margin: { top: 1440, right: 1800, bottom: 1440, left: 1800 } } }, children: children }]
+    });
+    D.Packer.toBlob(doc).then(function(blob) {
+      var a = document.createElement('a');
+      a.href     = URL.createObjectURL(blob);
+      a.download = 'teleprompter_' + lastTitle.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '') + '.docx';
+      a.click();
+      toast('Descargando .docx ✓');
+    });
+  } catch(e) {
+    showErr('Error al generar el .docx: ' + e.message);
+  }
+}
+
+async function exportDoc() {
+  if (!tpText) return;
+  setStatus('Creando Google Doc…', true);
+  try {
+    var docTitle = 'Teleprompter · ' + lastTitle + ' · ' + new Date().toLocaleDateString('es-CL');
+    var raw = await callClaude(
+      'Crea un nuevo Google Doc con el título y contenido indicados. Responde SOLO con JSON: {"url":"https://docs.google.com/document/d/..."}',
+      'Título: "' + docTitle + '"\n\nContenido:\n' + tpText.substring(0, 5000),
+      true
+    );
+    var urlMatch = raw.match(/https:\/\/docs\.google\.com\/document\/d\/[^\s"']+/);
+    if (urlMatch) { window.open(urlMatch[0], '_blank'); toast('Google Doc creado ✓'); }
+    else toast('Revisa Google Drive');
+    setStatus('✓ ' + lastTitle + ' · exportado');
+  } catch(e) {
+    setStatus('Error al exportar.');
+    showErr('No se pudo crear el Google Doc.');
+  }
+}
+
+function copyTP() {
+  if (!tpText) return;
+  navigator.clipboard.writeText(tpText).then(function() { toast('Texto copiado ✓'); });
+}
+
+function dlTxt() {
+  if (!tpText) return;
+  var a  = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([tpText], { type: 'text/plain;charset=utf-8' }));
+  a.download = 'teleprompter_' + lastTitle.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '') + '.txt';
+  a.click();
+  toast('Descargando .txt ✓');
+}
+</script>
+</body>
+</html>
