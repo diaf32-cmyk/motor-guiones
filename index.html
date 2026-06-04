@@ -469,34 +469,39 @@ async function run() {
     const docText = mdFileText;
     setProgress(2);
 
-    const combinedSystem =
-      'Eres un experto en análisis y formateo de guiones audiovisuales en formato Célula de Producción (columnas NAR/TEX/OBS/REF/EST).\n\n' +
-      'Haz DOS tareas en una sola respuesta. Responde SOLO con este JSON, sin texto extra:\n\n' +
-      '{\n' +
-      '  "titulo": "nombre del proyecto",\n' +
-      '  "total_palabras": 1200,\n' +
-      '  "modulos": [\n' +
-      '    {"numero":1,"nombre":"Nombre","palabras_nar":350,"escenas":4}\n' +
-      '  ],\n' +
-      '  "teleprompter": "MÓDULO 1\\n----------\\n\\nTexto del módulo en bloques cortos..."\n' +
-      '}\n\n' +
-      'TAREA 1 — Extrae y cuenta palabras NAR:\n' +
-      '- Solo texto de la columna NAR\n' +
-      '- Elimina: indicaciones (MIRA A CÁMARA), nombres de hablantes, instrucciones de producción, URLs, metadatos\n' +
-      '- Identifica módulos y cuenta palabras por módulo\n\n' +
-      'TAREA 2 — Genera campo "teleprompter" con estas reglas ESTRICTAS:\n' +
+    const analyzeSystem =
+      'Eres un experto en análisis de guiones audiovisuales en formato Célula de Producción (columnas NAR/TEX/OBS/REF/EST).\n\n' +
+      'Extrae ÚNICAMENTE el texto de la columna NAR eliminando:\n' +
+      '- Indicaciones de acción entre paréntesis: (MIRA A CÁMARA), (PAUSA), etc.\n' +
+      '- Nombres de hablantes: Relator:, Presentadora:, Cliente:, etc.\n' +
+      '- Instrucciones de producción: cortinas, inserts, gráficas, plano, lower third, chroma, URLs.\n' +
+      '- Encabezados, metadatos, texto de columnas TEX/OBS/REF/EST.\n\n' +
+      'Responde SOLO con este JSON sin texto extra:\n' +
+      '{"titulo":"nombre","total_palabras":1200,"modulos":[{"numero":1,"nombre":"Nombre","palabras_nar":350,"escenas":4,"texto_nar":"texto limpio aqui"}]}';
+
+    setStatus('Analizando guión…', true);
+    const analyzeRaw = await callClaude(analyzeSystem, 'Analiza este guión:\n\n' + docText.substring(0, 80000));
+    const jm = analyzeRaw.match(/\{[\s\S]*\}/);
+    if (!jm) throw new Error('No se pudo procesar el documento. Verifica que sea un guión en formato Célula.');
+    const parsed = JSON.parse(jm[0]);
+    lastTitle = parsed.titulo || 'Guión';
+
+    setProgress(3); setStatus('Generando teleprompter…', true);
+    const narTexts = (parsed.modulos || [])
+      .map(function(m) { return '=== ' + (m.nombre || 'Módulo ' + m.numero) + ' ===\n' + (m.texto_nar || ''); })
+      .join('\n\n');
+
+    const tpSystem =
+      'Eres un experto en formateo de guiones para teleprompter profesional.\n\n' +
+      'Reglas ESTRICTAS:\n' +
       '1. CERO números — todos en letras: "22"→"veintidós", "50%"→"cincuenta por ciento", "UF 2"→"dos unidades de fomento", "$100.000"→"cien mil pesos"\n' +
       '2. Siglas expandidas: "CMF"→"Comisión para el Mercado Financiero", "RRHH"→"Recursos Humanos", "IA"→"inteligencia artificial"\n' +
       '3. Párrafos cortos (máx 2-3 líneas) separados por línea en blanco\n' +
       '4. Encabezado de módulo en MAYÚSCULAS + línea ----------\n' +
-      '5. Sin negritas, cursivas, bullets ni símbolos';
+      '5. Sin negritas, cursivas, bullets ni símbolos\n\n' +
+      'Responde SOLO con el texto formateado, sin JSON, sin explicaciones.';
 
-    const analyzeRaw = await callClaude(combinedSystem, 'Analiza este guión:\n\n' + docText.substring(0, 80000));
-    const jm = analyzeRaw.match(/\{[\s\S]*\}/);
-    if (!jm) throw new Error('No se pudo procesar el documento. Verifica que sea un guión en formato Célula.');
-    const parsed = JSON.parse(jm[0]);
-    tpText    = parsed.teleprompter || '';
-    lastTitle = parsed.titulo || 'Guión';
+    tpText = await callClaude(tpSystem, 'Formatea para teleprompter:\n\n' + narTexts);
 
     const totalWords = parsed.total_palabras || 0;
     const mods       = parsed.modulos || [];
