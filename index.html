@@ -38,6 +38,16 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
 .card-label::after{content:'';flex:1;height:.5px;background:var(--border)}
 
 .url-row{display:flex;gap:8px}
+
+.drop-zone{border:1.5px dashed var(--border-s);border-radius:var(--r);padding:2rem 1rem;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:border-color .15s,background .15s;background:var(--bg);margin-bottom:10px}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--accent);background:var(--surface2)}
+.drop-title{font-size:13px;font-weight:600;margin-bottom:4px}
+.drop-sub{font-size:11px;color:var(--text3)}
+.file-chosen{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:var(--r);background:var(--surface2);border:.5px solid var(--border);font-size:13px;margin-bottom:10px}
+.file-chosen span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-remove{background:none;border:none;cursor:pointer;color:var(--text3);display:flex;align-items:center;padding:2px}
+.btn-remove:hover{color:var(--text)}
+
 .url-inp{flex:1;height:44px;padding:0 14px;border:.5px solid var(--border-s);border-radius:var(--r);background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:14px;transition:border-color .15s}
 .url-inp:focus{outline:none;border-color:var(--accent)}
 .url-inp::placeholder{color:var(--text3)}
@@ -156,17 +166,25 @@ body.progress-open{padding-top:52px}
       <span class="v-pill">v3.0 · calibrado</span>
     </div>
     <h1>Calculadora &amp;<br>Formateador de Guiones</h1>
-    <p>Pega el enlace del Google Doc con el guión en formato Célula, elige el modo de producción y obtén la duración estimada del curso publicado más la versión teleprompter lista para usar.</p>
+    <p>Sube el archivo <strong>.md</strong> exportado desde Google Docs, elige el modo de producción y obtén la duración estimada del curso publicado más la versión teleprompter lista para usar.</p>
   </header>
 
   <div class="card">
-    <div class="card-label"><i class="ti ti-link" style="font-size:12px"></i> Guión</div>
-    <div class="url-row">
-      <input class="url-inp" id="docUrl" type="url" placeholder="https://docs.google.com/document/d/..." autocomplete="off"/>
-      <button class="btn-primary" id="runBtn" onclick="run()">
-        <i class="ti ti-player-play"></i> Analizar
-      </button>
+    <div class="card-label"><i class="ti ti-file-text" style="font-size:12px"></i> Archivo .md del guión</div>
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <input type="file" id="fileInput" accept=".md,.txt" style="display:none" onchange="onFileChange(event)"/>
+      <i class="ti ti-file-upload" style="font-size:28px;color:var(--text3);margin-bottom:8px"></i>
+      <div class="drop-title">Arrastra tu archivo .md aquí</div>
+      <div class="drop-sub">o haz clic para seleccionar · .md o .txt</div>
     </div>
+    <div class="file-chosen" id="fileChosen" style="display:none">
+      <i class="ti ti-file-check" style="font-size:15px;color:var(--accent)"></i>
+      <span id="fileName">archivo.md</span>
+      <button class="btn-remove" onclick="removeFile()"><i class="ti ti-x"></i></button>
+    </div>
+    <button class="btn-primary" id="runBtn" onclick="run()" style="width:100%;justify-content:center;margin-top:10px" disabled>
+      <i class="ti ti-player-play"></i> Analizar
+    </button>
     <div class="err" id="errMsg"></div>
   </div>
 
@@ -366,12 +384,46 @@ function extractId(url) {
   return m ? m[1] : null;
 }
 
-async function fetchDocText(docId) {
-  const exportUrl = 'https://docs.google.com/document/d/' + docId + '/export?format=txt';
-  const res = await fetch('/api/proxy-doc?id=' + encodeURIComponent(docId));
-  if (!res.ok) throw new Error('No se pudo leer el documento. Verifica que esté compartido como "cualquiera con el enlace puede ver".');
-  return await res.text();
+let mdFileText = '';
+
+function onFileChange(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  loadFile(file);
 }
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    mdFileText = e.target.result;
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('fileChosen').style.display = 'flex';
+    document.getElementById('dropZone').style.display = 'none';
+    document.getElementById('runBtn').disabled = false;
+    lastTitle = file.name.replace(/\.md$/i,'').replace(/\.txt$/i,'');
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+function removeFile() {
+  mdFileText = '';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('fileChosen').style.display = 'none';
+  document.getElementById('dropZone').style.display = 'flex';
+  document.getElementById('runBtn').disabled = true;
+}
+
+// Drag & drop
+document.addEventListener('DOMContentLoaded', function() {
+  var dz = document.getElementById('dropZone');
+  dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', function(){ dz.classList.remove('drag'); });
+  dz.addEventListener('drop', function(e){
+    e.preventDefault(); dz.classList.remove('drag');
+    var f = e.dataTransfer.files[0];
+    if (f) loadFile(f);
+  });
+});
 
 async function callClaude(system, userMsg) {
   const body = {
@@ -395,10 +447,7 @@ async function callClaude(system, userMsg) {
 
 async function run() {
   hideErr();
-  const url = document.getElementById('docUrl').value.trim();
-  if (!url || !url.includes('docs.google.com')) { showErr('Ingresa un enlace válido de Google Docs.'); return; }
-  const docId = extractId(url);
-  if (!docId) { showErr('No se pudo extraer el ID del documento.'); return; }
+  if (!mdFileText) { showErr('Selecciona un archivo .md primero.'); return; }
 
   document.getElementById('runBtn').disabled = true;
   document.getElementById('results').classList.remove('on');
@@ -415,9 +464,9 @@ async function run() {
   const transDur = parseInt(document.getElementById('transDur').value)   || 1;
 
   try {
-    setProgress(1); setStatus('Leyendo el guión desde Google Docs…', true);
+    setProgress(1); setStatus('Leyendo el archivo…', true);
 
-    const docText = await fetchDocText(docId);
+    const docText = mdFileText;
     setProgress(2);
 
     const combinedSystem =
@@ -442,7 +491,7 @@ async function run() {
       '4. Encabezado de módulo en MAYÚSCULAS + línea ----------\n' +
       '5. Sin negritas, cursivas, bullets ni símbolos';
 
-    const analyzeRaw = await callClaude(combinedSystem, 'Analiza este guión:\n\n' + docText.substring(0, 60000));
+    const analyzeRaw = await callClaude(combinedSystem, 'Analiza este guión:\n\n' + docText.substring(0, 80000));
     const jm = analyzeRaw.match(/\{[\s\S]*\}/);
     if (!jm) throw new Error('No se pudo procesar el documento. Verifica que sea un guión en formato Célula.');
     const parsed = JSON.parse(jm[0]);
